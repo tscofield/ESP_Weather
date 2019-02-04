@@ -21,8 +21,20 @@
 #include <Time.h>
 //#include <TinyGPS++.h>
 #include <HardwareSerial.h>
-#include <SoftwareSerial.h>
-//#include <NMEAGPS.h>
+//#include <SoftwareSerial.h>
+
+#include <NMEAGPS.h>
+//#include <GPSport.h>
+
+#ifndef GPSport_h
+#define GPSport_h
+
+#define gpsPort Serial2
+#define GPS_PORT_NAME "Serial2"
+#define DEBUG_PORT Serial
+#define RX_PIN 34
+#define TX_PIN 35
+#endif
 
 #if defined(ESP32)
   #include "AsyncTCP.h"
@@ -41,7 +53,6 @@
 #include <Adafruit_BME280.h>
 
 #include <GxEPD.h>
-
 
 // select the display class to use, only one
 //#include <GxGDEP015OC1/GxGDEP015OC1.cpp>    // 1.54" b/w
@@ -161,7 +172,6 @@ GxEPD_Class display(io);
 
 #endif
 
-
 unsigned long delayTime;
 
 WiFiUDP ntpUDP;
@@ -170,10 +180,8 @@ WiFiUDP ntpUDP;
 // no offset
 NTPClient timeClient(ntpUDP);
 
-
-static const int RXPin = 9, TXPin = 10;
-static const uint32_t GPSBaud = 9600;
-
+//static const int RXPin = 9, TXPin = 10;
+//static const uint32_t GPSBaud = 9600;
 
 // The TinyGPS++ object
 //TinyGPSPlus gps;
@@ -182,8 +190,10 @@ static const uint32_t GPSBaud = 9600;
 //SoftwareSerial ss(RXPin, TXPin);
 //HardwareSerial ss;
 //HardwareSerial ss(2);
-//HardwareSerial Serial2(2);
-//static NMEAGPS  gps;
+//HardwareSerial Serial1(1);
+NMEAGPS  gps; // This parses the GPS characters
+gps_fix  fix; // This holds on to the latest valuesgps_fix  fix; // This holds on to the latest values
+
 
 
 float humidity = 0;
@@ -361,13 +371,14 @@ void setupGPS() {
 
 void setup(){
   Serial.begin(9600);
+//  gpsPort.begin(9600,SERIAL_8N1,9,10);
+  gpsPort.begin(9600,SERIAL_8N1,34,35);
 
   display.init();
 
   //setupGPS();
 
   Serial.println(F("BME280 test"));
-
   bool status;
   status = bme.begin(BME280_ADD);
 //  status = bme.begin();
@@ -382,8 +393,6 @@ void setup(){
   delayTime = 5000;
 
   Serial.println("");
-
-
 
   //WiFiManager
   //Local intialization. Once its business is done, there is no need to keep it around
@@ -481,6 +490,10 @@ void setup(){
     json += ",\"lux\":"+ String(lux);
     json += ",\"uptime\":" + String(millis()/1000);
     //  sprintf(temp, "Seconds since boot: %u", millis()/1000);
+    if (fix.valid.location) {
+      json += ",\"latitude\":" + String(fix.latitude());
+      json += ",\"longitude\":" + String(fix.longitude());
+    }
 
     json += "}";
     json += "]";
@@ -556,20 +569,23 @@ void getNTPinfo() {
 
 void getGPSinfo() {
   Serial.println("DEBUG: checking for GPS");
-//  if (gps.available( gpsPort )) {
-  //while (ss.available() > 0) {
-//    Serial.println("Debug: GPS appears to be available attempting to read");
-    //char c = ss.read();
-    //Serial.print(char(c));
-    //if (gps.encode(c)) {
-    //  Serial.print(F("Location: "));
-    //  if (gps.location.isValid()) {
-    //    Serial.print(gps.location.lat(), 6);
-    //    Serial.print(F(","));
-    //    Serial.print(gps.location.lng(), 6);
-    //  } else {
-    //    Serial.print(F("INVALID"));
-    //  }
+  //while (gps.available( gpsPort )) {
+    Serial.println("DEBUG: retrieving GPS data");
+    fix = gps.read();
+
+    Serial.print( F("Location: ") );
+    if (fix.valid.location) {
+      Serial.print( fix.latitude(), 6 );
+      Serial.print( ',' );
+      Serial.print( fix.longitude(), 6 );
+    }
+
+    Serial.print( F(", Altitude: ") );
+    if (fix.valid.altitude)
+      Serial.print( fix.altitude() );
+
+    Serial.println();
+  //}
     //  Serial.println();
 //      if (gps.time.isValid() && gps.date.isValid()) {
 //        Serial.println("received time from GPS, updating local time");
