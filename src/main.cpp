@@ -17,6 +17,7 @@
 #if defined(ESP32)
   #include "SPIFFS.h"
 #endif
+#include <SPIFFSLogger.h>
 
 #include <Time.h>
 //#include <TinyGPS++.h>
@@ -220,6 +221,15 @@ unsigned long timeUpdateMillisLast = 0;
 
 //Create Instance of HTU21D or SI7021 temp and humidity sensor and MPL3115A2 barrometric sensor
 //Weather sensor;
+
+// struct that defines the data we would like to log
+struct MyData
+{
+    float temp;
+    float humidity;
+};
+SPIFFSLogger<MyData> logger("/log/mydata", 1);
+unsigned long lastLog = 0;
 
 
 //---------------------------------------------------------------
