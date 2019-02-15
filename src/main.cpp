@@ -21,16 +21,18 @@
 #include <Time.h>
 //#include <TinyGPS++.h>
 #include <HardwareSerial.h>
-//#include <SoftwareSerial.h>
 
 #include <NMEAGPS.h>
+#include <Streamers.h>  // is this needed for neo gps?
+
 //#include <GPSport.h>
 
 #ifndef GPSport_h
 #define GPSport_h
 
-#define gpsPort Serial2
-#define GPS_PORT_NAME "Serial2"
+HardwareSerial gpsPort(2);
+//#define gpsPort Serial2(2)
+#define GPS_PORT_NAME Serial2
 #define DEBUG_PORT Serial
 #define RX_PIN 34
 #define TX_PIN 35
@@ -180,20 +182,8 @@ WiFiUDP ntpUDP;
 // no offset
 NTPClient timeClient(ntpUDP);
 
-//static const int RXPin = 9, TXPin = 10;
-//static const uint32_t GPSBaud = 9600;
-
-// The TinyGPS++ object
-//TinyGPSPlus gps;
-
-// The serial connection to the GPS device
-//SoftwareSerial ss(RXPin, TXPin);
-//HardwareSerial ss;
-//HardwareSerial ss(2);
-//HardwareSerial Serial1(1);
-NMEAGPS  gps; // This parses the GPS characters
-gps_fix  fix; // This holds on to the latest valuesgps_fix  fix; // This holds on to the latest values
-
+static NMEAGPS  gps; // This parses the GPS characters
+static gps_fix  fix; // This holds on to the latest valuesgps_fix  fix; // This holds on to the latest values
 
 
 float humidity = 0;
@@ -372,7 +362,7 @@ void setupGPS() {
 void setup(){
   Serial.begin(9600);
 //  gpsPort.begin(9600,SERIAL_8N1,9,10);
-  gpsPort.begin(9600,SERIAL_8N1,34,35);
+  gpsPort.begin(9600,SERIAL_8N1,RX_PIN,TX_PIN);
 
   display.init();
 
@@ -546,6 +536,7 @@ void setup(){
 
   server.begin();
 
+
 }
 void getNTPinfo() {
   // If we are in station mode STA then we can try and use NTP, otherwise skip
@@ -569,24 +560,31 @@ void getNTPinfo() {
 
 void getGPSinfo() {
   Serial.println("DEBUG: checking for GPS");
-  //while (gps.available( gpsPort )) {
-    Serial.println("DEBUG: retrieving GPS data");
-    fix = gps.read();
+  while (gpsPort.available() > 0) {
+    Serial.println("DEBUG: serial port has data, checking for valid gps data");
+    // get the byte data from the GPS
+    //byte gpsData = gpsPort.read();
+    //Serial.write(gpsData);
+    while (gps.available( gpsPort )) {
+      Serial.println("DEBUG: retrieving GPS data");
+      fix = gps.read();
 
-    Serial.print( F("Location: ") );
-    if (fix.valid.location) {
-      Serial.print( fix.latitude(), 6 );
-      Serial.print( ',' );
-      Serial.print( fix.longitude(), 6 );
+      Serial.print( F("Location: ") );
+      if (fix.valid.location) {
+        Serial.print( fix.latitude(), 6 );
+        Serial.print( ',' );
+        Serial.print( fix.longitude(), 6 );
+      }
+
+      Serial.print( F(", Altitude: ") );
+      if (fix.valid.altitude)
+        Serial.print( fix.altitude() );
+
+      Serial.println();
     }
-
-    Serial.print( F(", Altitude: ") );
-    if (fix.valid.altitude)
-      Serial.print( fix.altitude() );
-
-    Serial.println();
-  //}
+  }
     //  Serial.println();
+//
 //      if (gps.time.isValid() && gps.date.isValid()) {
 //        Serial.println("received time from GPS, updating local time");
 //        setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
